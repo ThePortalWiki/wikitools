@@ -30,14 +30,18 @@ def listFromQuery(site, queryresult):
 	
 	"""
 	ret = []
+	print queryresult
 	if isinstance(queryresult, list):
 		for item in queryresult:
 			pageid = False
+			if 'name' in item and 'url' in item and 'title' not in item:
+				item['title'] = u'File:' + item['name']
+				item['ns'] = 6
 			if 'pageid' in item:
 				pageid = item['pageid']
-			if item['ns'] == 14:
+			if 'ns' in item and item['ns'] == 14:
 				item = category.Category(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
-			if item['ns'] == 6:
+			elif 'ns' in item and item['ns'] == 6:
 				item = wikifile.File(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
 			else:
 				item = page.Page(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
@@ -46,11 +50,15 @@ def listFromQuery(site, queryresult):
 		for key in queryresult.keys():
 			item = queryresult[key]
 			pageid = False
+			print item
+			if 'name' in item and 'url' in item and 'title' not in item:
+				item['title'] = u'File:' + item['name']
+				item['ns'] = 6
 			if 'pageid' in item:
 				pageid = item['pageid']
-			if item['ns'] == 14:
+			if 'ns' in item and item['ns'] == 14:
 				item = category.Category(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
-			if item['ns'] == 6:
+			elif 'ns' in item and item['ns'] == 6:
 				item = wikifile.File(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
 			else:
 				item = page.Page(site, title=item['title'], check=False, followRedir=False, pageid=pageid)
