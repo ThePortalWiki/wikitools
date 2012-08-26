@@ -6,12 +6,12 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
- 
+
 # wikitools is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
- 
+
 # You should have received a copy of the GNU General Public License
 # along with wikitools.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -19,6 +19,8 @@ import wiki
 import page
 import api
 import socket
+import iso8601
+import utc
 
 class User:
 	"""A user on the wiki"""
@@ -27,7 +29,7 @@ class User:
 		wiki - A wiki object
 		name - The username, as a string
 		check - Checks for existence, normalizes name
-		"""	
+		"""
 		self.site = site
 		self.name = name
 		if not isinstance(self.name, unicode):
@@ -35,6 +37,7 @@ class User:
 		self.exists = True # If we're not going to check, assume it does
 		self.blocked = None # So we can tell the difference between blocked/not blocked/haven't checked
 		self.editcount = -1
+		self.registration = None
 		self.groups = []
 		self.id = 0
 		if check:
@@ -48,14 +51,13 @@ class User:
 		except:
 			pass
 		self.page = page.Page(self.site, ':'.join([self.site.namespaces[2]['*'], self.name]), check=check, followRedir=False)
-	
 	def setUserInfo(self):
-		"""Sets basic user info"""		
+		"""Sets basic user info"""
 		params = {
 			'action': 'query',
 			'list': 'users',
 			'ususers':self.name,
-			'usprop':'blockinfo|groups|editcount'
+			'usprop':'blockinfo|groups|editcount|registration'
 		}
 		req = api.APIRequest(self.site, params)
 		response = req.query()
@@ -66,6 +68,7 @@ class User:
 			return
 		self.id = int(user['userid'])
 		self.editcount = int(user['editcount'])
+		self.registration = iso8601.parse_date(user['registration']).replace(tzinfo=utc.utc)
 		if 'groups' in user:
 			self.groups = user['groups']
 		if 'blockedby' in user:
@@ -73,7 +76,7 @@ class User:
 		else:
 			self.blocked = False
 		return self
-		
+
 	def getTalkPage(self, check=True, followRedir=False):
 		"""Convenience function to get an object for the user's talk page"""
 		return page.Page(self.site, ':'.join([self.site.namespaces[3]['*'], self.name]), check=check, followRedir=False)
@@ -93,11 +96,11 @@ class User:
 			self.blocked = True
 		else:
 			self.blocked = False
-		return self.blocked		
-			
+		return self.blocked
+
 	def block(self, reason=False, expiry=False, anononly=False, nocreate=False, autoblock=False, noemail=False, hidename=False, allowusertalk=False, reblock=False):
 		"""Block the user
-		
+
 		Params are the same as the API
 		reason - block reason
 		expiry - block expiration
@@ -108,7 +111,7 @@ class User:
 		hidename - hide the username from the log (requires hideuser right)
 		allowusertalk - allow the user to edit their talk page
 		reblock - overwrite existing block
-		
+
 		"""
 		params = {'action':'block',
 			'user':self.name,
@@ -144,12 +147,12 @@ class User:
 		if 'block' in res:
 			self.blocked = True
 		return res
-		
+
 	def unblock(self, reason=False):
 		"""Unblock the user
-		
+
 		reason - reason for the log
-		
+
 		"""
 		params = {
 		    'action': 'unblock',
@@ -171,7 +174,7 @@ class User:
 		if 'unblock' in res:
 			self.blocked = False
 		return res
-	
+
 	def __hash__(self):
 		return int(self.name) ^ hash(self.site.apibase)
 	
@@ -187,10 +190,9 @@ class User:
 		if self.name == other.name and self.site == other.site:
 			return False
 		return True
-	
+
 	def __str__(self):
 		return self.__class__.__name__ + ' ' + repr(self.name) + " on " + repr(self.site.domain)
-	
+
 	def __repr__(self):
 		return "<"+self.__module__+'.'+self.__class__.__name__+" "+repr(self.name)+" on "+repr(self.site.apibase)+">"
-		

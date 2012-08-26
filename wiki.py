@@ -18,6 +18,7 @@
 import cookielib
 import api
 import urllib
+import threading
 import re
 import time
 import os
@@ -47,7 +48,7 @@ class Namespace(int):
 	def __ror__(self, other):
 		return '|'.join([str(other), str(self)])
 
-VERSION = '1.2'
+VERSION = '1.1.1'
 		
 class Wiki:
 	"""A Wiki site"""
@@ -64,6 +65,8 @@ class Wiki:
 		self.useragent = "python-wikitools/%s" % VERSION
 		self.cookiepath = ''
 		self.limit = 500
+		self.editToken = None
+		self.editTokenLock = threading.Lock()
 		self.siteinfo = {}
 		self.namespaces = {}
 		self.NSaliases = {}
@@ -74,6 +77,25 @@ class Wiki:
 			self.setSiteinfo()
 		except api.APIError: # probably read-restricted
 			pass
+	def getEditToken(self, title):
+		self.editTokenLock.acquire()
+		if self.editToken is not None:
+			self.editTokenLock.release()
+			return self.editToken
+		try:
+			params = {
+				'action': 'query',
+				'prop': 'info',
+				'intoken': 'edit',
+				'titles': title
+			}
+			req = api.APIRequest(self, params)
+			response = req.query()
+			self.editToken = response['query']['pages'][str(response['query']['pages'].keys()[0])]['edittoken']
+		except:
+			pass
+		self.editTokenLock.release()
+		return self.editToken
 	
 	def setSiteinfo(self):
 		"""Retrieves basic siteinfo
