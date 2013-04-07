@@ -6,12 +6,12 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
- 
+
 # wikitools is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
- 
+
 # You should have received a copy of the GNU General Public License
 # along with wikitools.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -29,7 +29,7 @@ except:
 
 class WikiError(Exception):
 	"""Base class for errors"""
-	
+
 class UserBlocked(WikiError):
 	"""Trying to edit while blocked"""
 
@@ -43,12 +43,12 @@ class Namespace(int):
 	"""
 	def __or__(self, other):
 		return '|'.join([str(self), str(other)])
-	
+
 	def __ror__(self, other):
 		return '|'.join([str(other), str(self)])
 
-VERSION = '1.2'
-		
+VERSION = '1.2.1'  # ThePortalWiki
+
 class Wiki:
 	"""A Wiki site"""
 
@@ -74,13 +74,13 @@ class Wiki:
 			self.setSiteinfo()
 		except api.APIError: # probably read-restricted
 			pass
-	
+
 	def setSiteinfo(self):
 		"""Retrieves basic siteinfo
-		
+
 		Called when constructing,
 		or after login if the first call failed
-		
+
 		"""
 		params = {'action':'query',
 			'meta':'siteinfo',
@@ -104,7 +104,7 @@ class Wiki:
 					attr = "NS_%s" % (nsdata[ns]['*'].replace(' ', '_').upper())
 			else:
 				attr = "NS_MAIN"
-			setattr(self, attr.encode('utf8'), Namespace(ns.encode('utf8')))			
+			setattr(self, attr.encode('utf8'), Namespace(ns.encode('utf8')))
 		nsaliasdata = info['query']['namespacealiases']
 		if nsaliasdata:
 			for ns in nsaliasdata:
@@ -115,22 +115,22 @@ class Wiki:
 		if not int(version.group(1)) >= 13: # Will this even work on 13?
 			print "WARNING: Some features may not work on older versions of MediaWiki"
 		return self
-	
+
 	def login(self, username, password=False, remember=False, force=False, verify=True, domain=None):
 		"""Login to the site
-		
+
 		remember - saves cookies to a file - the filename will be:
 		hash(username - apibase).cookies
 		the cookies will be saved in the current directory, change cookiepath
 		to use a different location
-		force - forces login over the API even if a cookie file exists 
+		force - forces login over the API even if a cookie file exists
 		and overwrites an existing cookie file if remember is True
 		verify - Checks cookie validity with isLoggedIn()
 		domain - domain name, required for some auth systems like LDAP
-		
+
 		"""
 		if not force:
-			try:	
+			try:
 				cookiefile = self.cookiepath + str(hash(username+' - '+self.apibase))+'.cookies'
 				self.cookies.load(self, cookiefile, True, True)
 				self.username = username
@@ -190,7 +190,7 @@ class Wiki:
 		if self.useragent == "python-wikitools/%s" % VERSION:
 			self.useragent = "python-wikitools/%s (User:%s)" % (VERSION, self.username)
 		return True
-	
+
 	def logout(self):
 		params = { 'action': 'logout' }
 		if self.maxlag < 120:
@@ -210,14 +210,14 @@ class Wiki:
 		self.useragent = "python-wikitools/%s" % VERSION
 		self.limit = 500
 		return True
-		
+
 	def isLoggedIn(self, username = False):
 		"""Verify that we are a logged in user
-		
+
 		username - specify a username to check against
-		
+
 		"""
-		
+
 		data = {
 			"action" : "query",
 			"meta" : "userinfo",
@@ -232,13 +232,13 @@ class Wiki:
 			return False
 		else:
 			return True
-	
+
 	def setMaxlag(self, maxlag = 5):
 		"""Set the maximum server lag to allow
-		
+
 		If the lag is > the maxlag value, all requests will wait
 		Setting to a negative number will disable maxlag checks
-		
+
 		"""
 		try:
 			int(maxlag)
@@ -246,7 +246,7 @@ class Wiki:
 			raise WikiError("maxlag must be an integer")
 		self.maxlag = int(maxlag)
 		return self.maxlag
-		
+
 	def setUserAgent(self, useragent):
 		"""Function to set a different user-agent"""
 		self.useragent = str(useragent)
@@ -254,24 +254,24 @@ class Wiki:
 
 	def setAssert(self, value):
 		"""Set an assertion value
-		
+
 		This only makes a difference on sites with the AssertEdit extension
 		on others it will be silently ignored
 		This is only checked on edits, so only applied to write queries
-		
+
 		Set to None (the default) to not use anything
 		http://www.mediawiki.org/wiki/Extension:Assert_Edit
-		
+
 		"""
 		valid = ['user', 'bot', 'true', 'false', 'exists', 'test', None]
 		if value not in valid:
 			raise WikiError("Invalid assertion")
 		self.assertval = value
 		return self.assertval
-		
+
 	def __hash__(self):
 		return hash(self.apibase)
-		
+
 	def __eq__(self, other):
 		if not isinstance(other, Wiki):
 			return False
@@ -284,22 +284,22 @@ class Wiki:
 		if self.apibase == other.apibase:
 			return False
 		return True
-		
+
 	def __str__(self):
 		if self.username:
 			user = ' - using User:'+self.username
 		else:
 			user = ' - not logged in'
 		return self.domain + user
-	
+
 	def __repr__(self):
 		if self.username:
 			user = ' User:'+self.username
 		else:
 			user = ' not logged in'
 		return "<"+self.__module__+'.'+self.__class__.__name__+" "+repr(self.apibase)+user+">"
-		
-		
+
+
 
 class CookiesExpired(WikiError):
 	"""Cookies are expired, needs to be an exception so login() will use the API instead"""
@@ -324,7 +324,7 @@ class WikiCookieJar(cookielib.FileCookieJar):
 		f.write(content)
 		f.close()
 		os.umask(old_umask)
-	
+
 	def load(self, site, filename, ignore_discard, ignore_expires):
 		f = open(filename, 'r')
 		cookies = f.read().split('|~|')
@@ -345,4 +345,4 @@ class WikiCookieJar(cookielib.FileCookieJar):
 			self.set_cookie(cook)
 		exec sitedata
 		f.close()
-	
+
