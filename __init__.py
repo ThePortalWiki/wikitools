@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-__all__ = ["wiki", "api", "page", "category", "user", "pagelist", "wikifile"]
+__all__ = ["wiki", "api", "page", "category", "user", "pagelist", "wikifile", "utc"]
 from wiki import *
 from api import *
 from page import *

@@ -6,12 +6,12 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
- 
+
 # wikitools is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
- 
+
 # You should have received a copy of the GNU General Public License
 # along with wikitools.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -32,7 +32,7 @@ class WikiError(Exception):
 
 class BadTitle(WikiError):
 	"""Invalid title"""
-	
+
 class NoPage(WikiError):
 	"""Non-existent page"""
 
@@ -49,12 +49,12 @@ class Namespace(int):
 	"""
 	def __or__(self, other):
 		return '|'.join([str(self), str(other)])
-	
+
 	def __ror__(self, other):
 		return '|'.join([str(other), str(self)])
 
-VERSION = '1.2'
-		
+VERSION = '1.2.1'  # ThePortalWiki
+
 class Wiki:
 	"""A Wiki site"""
 
@@ -79,13 +79,13 @@ class Wiki:
 			self.setSiteinfo()
 		except api.APIError: # probably read-restricted
 			pass
-	
+
 	def setSiteinfo(self):
 		"""Retrieves basic siteinfo
-		
+
 		Called when constructing,
 		or after login if the first call failed
-		
+
 		"""
 		params = {'action':'query',
 			'meta':'siteinfo',
@@ -106,7 +106,7 @@ class Wiki:
 				attr = "NS_%s" % (nsdata[ns]['canonical'].replace(' ', '_').upper())
 			else:
 				attr = "NS_MAIN"
-			setattr(self, attr, Namespace(ns))			
+			setattr(self, attr, Namespace(ns))
 		nsaliasdata = info['query']['namespacealiases']
 		if nsaliasdata:
 			for ns in nsaliasdata:
@@ -117,22 +117,22 @@ class Wiki:
 		if not int(version.group(1)) >= 13: # Will this even work on 13?
 			print "WARNING: Some features may not work on older versions of MediaWiki"
 		return self
-	
+
 	def login(self, username, password=False, remember=False, force=False, verify=True, domain=None):
 		"""Login to the site
-		
+
 		remember - saves cookies to a file - the filename will be:
 		hash(username - apibase).cookies
 		the cookies will be saved in the current directory, change cookiepath
 		to use a different location
-		force - forces login over the API even if a cookie file exists 
+		force - forces login over the API even if a cookie file exists
 		and overwrites an existing cookie file if remember is True
 		verify - Checks cookie validity with isLoggedIn()
 		domain - domain name, required for some auth systems like LDAP
-		
+
 		"""
 		if not force:
-			try:	
+			try:
 				cookiefile = self.cookiepath + str(hash(username+' - '+self.apibase))+'.cookies'
 				self.cookies.load(self, cookiefile, True, True)
 				self.username = username
@@ -143,6 +143,13 @@ class Wiki:
 		if not password:
 			from getpass import getpass
 			password = getpass()
+		def loginerror(info):
+			try:
+				print info['login']['result']
+			except:
+				print info['error']['code']
+				print info['error']['info']
+			return False
 		data = {
 			"action" : "login",
 			"lgname" : username,
@@ -156,13 +163,15 @@ class Wiki:
 		info = req.query()
 		if info['login']['result'] == "Success":
 			self.username = username
+		elif info['login']['result'] == "NeedToken":
+			req.changeParam('lgtoken', info['login']['token'])
+			info = req.query()
+			if info['login']['result'] == "Success":
+				self.username = username
+			else:
+				return loginerror(info)
 		else:
-			try:
-				print info['login']['result']
-			except:
-				print info['error']['code']
-				print info['error']['info']
-			return False
+			return loginerror(info)
 		if not self.siteinfo:
 			self.setSiteinfo()
 		params = {
@@ -183,7 +192,7 @@ class Wiki:
 		if self.useragent == "python-wikitools/%s" % VERSION:
 			self.useragent = "python-wikitools/%s (User:%s)" % (VERSION, self.username)
 		return True
-	
+
 	def logout(self):
 		params = { 'action': 'logout' }
 		if self.maxlag < 120:
@@ -200,17 +209,17 @@ class Wiki:
 		self.cookies = WikiCookieJar()
 		self.username = ''
 		self.maxlag = 5
-		self.useragent = "python-wikitools/1.0"
+		self.useragent = "python-wikitools/%s" % VERSION
 		self.limit = 500
 		return True
-		
+
 	def isLoggedIn(self, username = False):
 		"""Verify that we are a logged in user
-		
+
 		username - specify a username to check against
-		
+
 		"""
-		
+
 		data = {
 			"action" : "query",
 			"meta" : "userinfo",
@@ -225,13 +234,13 @@ class Wiki:
 			return False
 		else:
 			return True
-	
+
 	def setMaxlag(self, maxlag = 5):
 		"""Set the maximum server lag to allow
-		
+
 		If the lag is > the maxlag value, all requests will wait
 		Setting to a negative number will disable maxlag checks
-		
+
 		"""
 		try:
 			int(maxlag)
@@ -239,7 +248,7 @@ class Wiki:
 			raise WikiError("maxlag must be an integer")
 		self.maxlag = int(maxlag)
 		return self.maxlag
-		
+
 	def setUserAgent(self, useragent):
 		"""Function to set a different user-agent"""
 		self.useragent = str(useragent)
@@ -257,22 +266,22 @@ class Wiki:
 		if self.apibase == other.apibase:
 			return False
 		return True
-		
+
 	def __str__(self):
 		if self.username:
 			user = ' - using User:'+self.username
 		else:
 			user = ' - not logged in'
 		return self.domain + user
-	
+
 	def __repr__(self):
 		if self.username:
 			user = ' User:'+self.username
 		else:
 			user = ' not logged in'
 		return "<"+self.__module__+'.'+self.__class__.__name__+" "+repr(self.apibase)+user+">"
-		
-		
+
+
 
 class CookiesExpired(WikiError):
 	"""Cookies are expired, needs to be an exception so login() will use the API instead"""
@@ -297,7 +306,7 @@ class WikiCookieJar(cookielib.FileCookieJar):
 		f.write(content)
 		f.close()
 		os.umask(old_umask)
-	
+
 	def load(self, site, filename, ignore_discard, ignore_expires):
 		f = open(filename, 'r')
 		cookies = f.read().split('|~|')
@@ -318,4 +327,4 @@ class WikiCookieJar(cookielib.FileCookieJar):
 			self.set_cookie(cook)
 		exec sitedata
 		f.close()
-	
+

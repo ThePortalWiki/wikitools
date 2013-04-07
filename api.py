@@ -6,12 +6,12 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
- 
+
 # wikitools is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
- 
+
 # You should have received a copy of the GNU General Public License
 # along with wikitools.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -41,17 +41,17 @@ class APIError(Exception):
 
 class APIDisabled(APIError):
 	"""API not enabled"""
-	
+
 class APIRequest:
 	"""A request to the site's API"""
 	def __init__(self, wiki, data, write=False, multipart=False):
-		"""	
+		"""
 		wiki - A Wiki object
 		data - API parameters in the form of a dict
 		write - set to True if doing a write query, so it won't try again on error
 		multipart - use multipart data transfer, required for file uploads,
 		requires the poster package
-		
+
 		maxlag is set by default to 5 but can be changed
 		format is always set to json
 		"""
@@ -82,7 +82,7 @@ class APIRequest:
 		self.response = False
 		self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(wiki.cookies))
 		self.request = urllib2.Request(self.wiki.apibase, self.encodeddata, self.headers)
-		
+
 	def setMultipart(self, multipart=True):
 		"""Enable multipart data transfer, required for file uploads."""
 		if not canupload and multipart:
@@ -103,12 +103,12 @@ class APIRequest:
 
 	def changeParam(self, param, value):
 		"""Change or add a parameter after making the request object
-		
+
 		Simply changing self.data won't work as it needs to update other things.
 
 		value can either be a normal string value, or a file-like object,
 		which will be uploaded, if setMultipart was called previously.
-		
+
 		"""
 		if param == 'format':
 			raise APIError('You can not change the result format')
@@ -126,25 +126,25 @@ class APIRequest:
 			self.headers['Content-Length'] = len(self.encodeddata)
 			self.headers['Content-Type'] = "application/x-www-form-urlencoded"
 		self.request = urllib2.Request(self.wiki.apibase, self.encodeddata, self.headers)
-	
+
 	def query(self, querycontinue=True):
 		"""Actually do the query here and return usable stuff
-		
+
 		querycontinue - look for query-continue in the results and continue querying
 		until there is no more data to retrieve
-		
+
 		"""
 		data = False
 		while not data:
 			rawdata = self.__getRaw()
-			data = self.__parseJSON(rawdata)				
+			data = self.__parseJSON(rawdata)
 		#Certain errors should probably be handled here...
 		if 'error' in data:
 			raise APIError(data['error']['code'], data['error']['info'])
 		if 'query-continue' in data and querycontinue:
 			data = self.__longQuery(data)
 		return data
-	
+
 	def __longQuery(self, initialdata):
 		"""For queries that require multiple requests"""
 		self._continues = set()
@@ -189,7 +189,7 @@ class APIRequest:
 			if len(key2) >= 11 and key2.startswith('g'):
 				self._generator = key2
 				for ckey in self._continues:
-					params.pop(ckey, None)		
+					params.pop(ckey, None)
 			else:
 				self._continues.add(key2)
 			params[key2] = cont
@@ -252,25 +252,27 @@ class APIRequest:
 						return False
 			except: # Something's wrong with the data...
 				data.seek(0)
+				print 'Data is', data.read()
+				data.seek(0)
 				if "MediaWiki API is not enabled for this site. Add the following line to your LocalSettings.php<pre><b>$wgEnableAPI=true;</b></pre>" in data.read():
 					raise APIDisabled("The API is not enabled on this site")
-				print "Invalid JSON, trying request again"
+				print "Invalid JSON, trying request again!"
 				# FIXME: Would be nice if this didn't just go forever if its never going to work
 				return False
 		return content
-		
+
 class APIResult(dict):
 	response = []
-	
+
 class APIListResult(list):
 	response = []
-		
+
 def resultCombine(type, old, new):
 	"""Experimental-ish result-combiner thing
-	
+
 	If the result isn't something from action=query,
 	this will just explode, but that shouldn't happen hopefully?
-	
+
 	"""
 	ret = old
 	if type in new['query']: # Basic list, easy
@@ -284,18 +286,18 @@ def resultCombine(type, old, new):
 					continue
 				elif type in new['query']['pages'][key] and not type in ret['query']['pages'][key]: # if only the new one does, just add it to the return
 					ret['query']['pages'][key][type] = new['query']['pages'][key][type]
-					continue					
+					continue
 				else: # Need to check for possible duplicates for some, this is faster than just iterating over new and checking for dups in ret
 					retset = set([tuple(entry.items()) for entry in ret['query']['pages'][key][type]])
 					newset = set([tuple(entry.items()) for entry in new['query']['pages'][key][type]])
 					retset.update(newset)
 					ret['query']['pages'][key][type] = [dict(entry) for entry in retset]
 	return ret
-		
+
 def urlencode(query,doseq=0):
     """
 	Hack of urllib's urlencode function, which can handle
-	utf-8, but for unknown reasons, chooses not to by 
+	utf-8, but for unknown reasons, chooses not to by
 	trying to encode everything as ascii
     """
     if hasattr(query,"items"):
