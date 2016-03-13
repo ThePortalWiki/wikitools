@@ -147,66 +147,24 @@ class APIRequest:
 			if self.iswrite and data['error']['code'] == 'blocked':
 				raise wiki.UserBlocked(data['error']['info'])
 			raise APIError(data['error']['code'], data['error']['info'])
-		if 'query-continue' in data and querycontinue:
-			data = self.__longQuery(data)
+		if 'continue' in data and querycontinue:
+			data = self.__longQuery(data, timeout=timeout)
 		return data
 
-	def __longQuery(self, initialdata):
+	def __longQuery(self, initialdata, timeout=None):
 		"""For queries that require multiple requests"""
 		self._continues = set()
 		self._generator = ''
+		params = self.data.copy()
 		total = initialdata
-		res = initialdata
-		params = self.data
-		numkeys = len(res['query-continue'].keys())
-		while numkeys > 0:
-			key1 = ''
-			key2 = ''
-			possiblecontinues = res['query-continue'].keys()
-			if len(possiblecontinues) == 1:
-				key1 = possiblecontinues[0]
-				keylist = res['query-continue'][key1].keys()
-				if len(keylist) == 1:
-					key2 = keylist[0]
-				else:
-					for key in keylist:
-						if len(key) < 11:
-							key2 = key
-							break
-					else:
-						key2 = keylist[0]
-			else:
-				for posskey in possiblecontinues:
-					keylist = res['query-continue'][posskey].keys()
-					for key in keylist:
-						if len(key) < 11:
-							key1 = posskey
-							key2 = key
-							break
-					if key1:
-						break
-				else:
-					key1 = possiblecontinues[0]
-					key2 = res['query-continue'][key1].keys()[0]
-			if isinstance(res['query-continue'][key1][key2], int):
-				cont = res['query-continue'][key1][key2]
-			else:
-				cont = res['query-continue'][key1][key2].encode('utf-8')
-			if len(key2) >= 11 and key2.startswith('g'):
-				self._generator = key2
-				for ckey in self._continues:
-					params.pop(ckey, None)
-			else:
-				self._continues.add(key2)
-			params[key2] = cont
-			req = APIRequest(self.wiki, params)
-			res = req.query(False)
-			for type in possiblecontinues:
-				total = resultCombine(type, total, res)
-			if 'query-continue' in res:
-				numkeys = len(res['query-continue'].keys())
-			else:
-				numkeys = 0
+		data = initialdata
+		while 'continue' in data and len(data['continue']):
+			params.update(data['continue'])
+			data = APIRequest(self.wiki, params).query(querycontinue=False, timeout=timeout)
+			for k in data['query'].keys():
+				if k not in total['query'] or k in ('batchcomplete', 'continue', 'warnings', 'query-continue'):
+					continue
+				total = resultCombine(k, total, data)
 		return total
 
 	def __getRaw(self, timeout=None):
