@@ -34,6 +34,18 @@ class WikiError(Exception):
 class UserBlocked(WikiError):
 	"""Trying to edit while blocked"""
 
+class BadTitle(WikiError):
+	"""Invalid title"""
+
+class NoPage(WikiError):
+	"""Non-existent page"""
+
+class EditError(WikiError):
+	"""Problem with edit request"""
+
+class AuthError(WikiError):
+	"""Failed to authenticate with wiki"""
+
 class Namespace(int):
 	"""
 	Class for namespace 'constants'
@@ -169,7 +181,7 @@ class Wiki:
 			except:
 				print info['error']['code']
 				print info['error']['info']
-			return False
+			raise AuthError()
 		data = {
 			"action" : "login",
 			"lgname" : username,
