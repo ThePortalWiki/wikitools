@@ -164,7 +164,7 @@ class Wiki:
 		
 		"""
 		if not force:
-			try:	
+			try:
 				cookiefile = self.cookiepath + str(hash(username+' - '+self.apibase))+'.cookies'
 				self.cookies.load(self, cookiefile, True, True)
 				self.username = username
@@ -179,13 +179,27 @@ class Wiki:
 			try:
 				print info['login']['result']
 			except:
-				print info['error']['code']
-				print info['error']['info']
+				try:
+					print info['error']['code']
+					print info['error']['info']
+				except:
+					print info
 			raise AuthError()
+		login_token_data = {
+			"action" : "query",
+			"meta" : "tokens",
+			"type" : "login",
+		}
+		req = api.APIRequest(self, login_token_data)
+		login_token_info = req.query()
+		if 'query' not in login_token_info or 'tokens' not in login_token_info['query'] or 'logintoken' not in login_token_info['query']['tokens']:
+			return loginerror(login_token_info)
+		login_token = login_token_info['query']['tokens']['logintoken']
 		data = {
 			"action" : "login",
 			"lgname" : username,
 			"lgpassword" : password,
+			"lgtoken" : login_token,
 		}
 		if domain is not None:
 			data["lgdomain"] = domain
