@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Copyright 2008, 2009 Mr.Z-man,  bjweeks
 
 # This file is part of wikitools.
@@ -19,6 +19,7 @@ import wiki
 import page
 import api
 import socket
+import re
 import iso8601
 import utc
 
@@ -31,7 +32,7 @@ class User:
 		check - Checks for existence, normalizes name
 		"""
 		self.site = site
-		self.name = name
+		self.name = name.strip()
 		if not isinstance(self.name, unicode):
 			self.name = unicode(self.name, 'utf8')
 		self.exists = True # If we're not going to check, assume it does
@@ -43,14 +44,54 @@ class User:
 		if check:
 			self.setUserInfo()
 		self.isIP = False
-		try:
+		self.IPcheck()
+		self.page = page.Page(self.site, ':'.join([self.site.namespaces[2]['*'], self.name]), check=check, followRedir=False)
+
+	def IPcheck(self):
+		try: #IPv4 check
 			s = socket.inet_aton(self.name.replace(' ', '_'))
 			if socket.inet_ntoa(s) == self.name:
 				self.isIP = True
 				self.exists = False
+				return
+		except:
+			pass
+		try:
+			s = socket.inet_pton(socket.AF_INET6, self.name.replace(' ', '_'))
+			if self.IPnorm(socket.inet_ntop(socket.AF_INET6, s)) == self.IPnorm(self.name):
+				self.isIP = True
+				self.exists = False
+				self.name = self.IPnorm(self.name)
+				return
 		except:
 			pass
 		self.page = page.Page(self.site, ':'.join([self.site.namespaces[2]['*'], self.name]), check=check, followRedir=False)
+
+	def IPnorm(self, ip):
+		"""This is basically a port of MediaWiki's IP::sanitizeIP but assuming no CIDR ranges"""
+		ip = ip.upper()
+		# Expand zero abbreviations
+		abbrevPos = ip.find('::')
+		if abbrevPos != -1:
+			addressEnd = len(ip) - 1
+			# If the '::' is at the beginning...
+			if abbrevPos == 0:
+				repeat = '0:'
+				extra = '0' if ip == '::' else ''
+				pad = 9
+			elif abbrevPos == addressEnd - 1:
+				repeat = ':0'
+				extra = ''
+				pad = 9
+			else:
+				repeat = ':0'
+				extra = ':'
+				pad = 8
+			ip = ip.replace( '::', repeat*(pad-ip.count(':'))+extra)
+		# Remove leading zereos from each bloc as needed
+		ip = re.sub('/(^|:)0+(([0-9A-Fa-f]{1,4}))/', '\1\2', ip)
+		return ip;
+
 	def setUserInfo(self):
 		"""Sets basic user info"""
 		params = {
@@ -80,7 +121,7 @@ class User:
 	def getTalkPage(self, check=True, followRedir=False):
 		"""Convenience function to get an object for the user's talk page"""
 		return page.Page(self.site, ':'.join([self.site.namespaces[3]['*'], self.name]), check=check, followRedir=False)
-		
+
 	def isBlocked(self, force=False):
 		"""Determine if a user is blocked"""
 		if self.blocked is not None and not force:
@@ -177,7 +218,7 @@ class User:
 
 	def __hash__(self):
 		return int(self.name) ^ hash(self.site.apibase)
-	
+
 	def __eq__(self, other):
 		if not isinstance(other, User):
 			return False

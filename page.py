@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Copyright 2008, 2009 Mr.Z-man,  bjweeks
 
 # This file is part of wikitools.
@@ -520,7 +520,7 @@ class Page(object):
 		"""
 		validargs = set(['text', 'summary', 'minor', 'notminor', 'bot', 'basetimestamp', 'starttimestamp',
 			'recreate', 'createonly', 'nocreate', 'watch', 'unwatch', 'watchlist', 'prependtext', 'appendtext',
-			'section'])
+			'section', 'captchaword', 'captchaid'])
 		# For backwards compatibility
 		if 'newtext' in kwargs:
 			kwargs['text'] = kwargs['newtext']
@@ -744,7 +744,7 @@ class Page(object):
 			self.pageid = response['query']['pages'].keys()[0]
 		token = response['query']['pages'][str(self.pageid)][type+'token']
 		return token
-	
+
 	def __hash__(self):
 		return int(self.pageid) ^ hash(self.site.apibase)
 

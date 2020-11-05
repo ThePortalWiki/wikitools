@@ -190,7 +190,9 @@ class File(page.Page):
 			params['iiurlwidth'] = width
 		if height:
 			params['iiurlheight'] = height
-		if self.title:
+		if self.pageid != 0:
+			params['pageids'] = self.pageid
+		elif self.title:
 			params['titles'] = self.title
 		else:
 			self.setPageInfo()
