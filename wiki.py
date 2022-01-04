@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # Copyright 2008, 2009 Mr.Z-man
 
 # This file is part of wikitools.
@@ -30,6 +30,17 @@ except:
 
 class WikiError(Exception):
 	"""Base class for errors"""
+	def __init__(self, *args, **kwargs):
+		self._args = args
+		self._kwargs = kwargs
+	def __str__(self):
+		return '%s%s%s' % (
+			super(self.__class__).__str__(),
+			' %s' % (self._args,) if self._args else '',
+			' %s' % (self._kwargs,) if self._kwargs else '',
+		)
+	def __repr__(self):
+		return str(self)
 
 class UserBlocked(WikiError):
 	"""Trying to edit while blocked"""
@@ -184,23 +195,34 @@ class Wiki:
 					print info['error']['info']
 				except:
 					print info
-			raise AuthError()
-		login_token_data = {
-			"action" : "query",
-			"meta" : "tokens",
-			"type" : "login",
-		}
-		req = api.APIRequest(self, login_token_data)
-		login_token_info = req.query()
-		if 'query' not in login_token_info or 'tokens' not in login_token_info['query'] or 'logintoken' not in login_token_info['query']['tokens']:
-			return loginerror(login_token_info)
-		login_token = login_token_info['query']['tokens']['logintoken']
-		data = {
-			"action" : "login",
-			"lgname" : username,
-			"lgpassword" : password,
-			"lgtoken" : login_token,
-		}
+			raise AuthError(info)
+		try:
+			login_token_data = {
+				"action" : "query",
+				"meta" : "tokens",
+				"type" : "login",
+			}
+			req = api.APIRequest(self, login_token_data)
+			login_token_info = req.query()
+			if 'query' not in login_token_info or 'tokens' not in login_token_info['query'] or 'logintoken' not in login_token_info['query']['tokens']:
+				return loginerror(login_token_info)
+			login_token = login_token_info['query']['tokens']['logintoken']
+			data = {
+				"action" : "login",
+				"lgname" : username,
+				"lgpassword" : password,
+				"lgtoken" : login_token,
+			}
+		except AuthError as e:
+			str_e = str(e)
+			if 'Unrecognized value for parameter' not in str_e or 'tokens' not in str_e:
+				raise
+			print 'Trying old-style login, please update MediaWiki ASAP.'
+			data = {
+				"action" : "login",
+				"lgname" : username,
+				"lgpassword" : password,
+			}
 		if domain is not None:
 			data["lgdomain"] = domain
 		if self.maxlag < 120:
