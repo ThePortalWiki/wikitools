@@ -725,25 +725,15 @@ class Page(object):
 		"""
 		if self.pageid == 0 and not self.title:
 			self.setPageInfo()
-		if type == 'edit':
-			return self.site.getEditToken(self.title)
 		if not self.exists and type != 'edit':
 			raise NoPage
-		params = {
-			'action':'query',
-			'prop':'info',
-			'intoken':type,
-		}
-		if self.exists and self.pageid:
-			params['pageids'] = self.pageid
-		else:
-			params['titles'] = self.title
-		req = api.APIRequest(self.site, params)
-		response = req.query()
-		if self.pageid == 0:
-			self.pageid = response['query']['pages'].keys()[0]
-		token = response['query']['pages'][str(self.pageid)][type+'token']
-		return token
+		# We ignore the type beyond this point because it's
+		# been deprecated:
+		# https://www.mediawiki.org/wiki/MediaWiki_1.37/Deprecation_of_legacy_API_token_parameters
+		# but it's still useful for the purpose of this library
+		# because it can have different logic above depending
+		# on whether the caller is requesting an edit token.
+		return self.site.getCSRFToken()
 
 	def __hash__(self):
 		return int(self.pageid) ^ hash(self.site.apibase)

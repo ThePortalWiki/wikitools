@@ -88,8 +88,8 @@ class Wiki:
 		self.useragent = "python-wikitools/%s" % VERSION
 		self.cookiepath = ''
 		self.limit = 500
-		self.editToken = None
-		self.editTokenLock = threading.Lock()
+		self.csrfToken = None
+		self.csrfTokenLock = threading.Lock()
 		self.siteinfo = {}
 		self.namespaces = {}
 		self.NSaliases = {}
@@ -100,25 +100,25 @@ class Wiki:
 			self.setSiteinfo()
 		except api.APIError: # probably read-restricted
 			pass
-	def getEditToken(self, title):
-		self.editTokenLock.acquire()
-		if self.editToken is not None:
-			self.editTokenLock.release()
-			return self.editToken
+	def getCSRFToken(self):
+		self.csrfTokenLock.acquire()
+		if self.csrfToken is not None:
+			self.csrfTokenLock.release()
+			return self.csrfToken
 		try:
 			params = {
 				'action': 'query',
-				'prop': 'info',
-				'intoken': 'edit',
-				'titles': title
+				'meta': 'tokens',
+				'type': 'csrf',
+				'format': 'json',
 			}
 			req = api.APIRequest(self, params)
 			response = req.query()
-			self.editToken = response['query']['pages'][str(response['query']['pages'].keys()[0])]['edittoken']
+			self.csrfToken = response['query']['tokens']['csrftoken']
 		except:
 			pass
-		self.editTokenLock.release()
-		return self.editToken
+		self.csrfTokenLock.release()
+		return self.csrfToken
 
 	def setSiteinfo(self):
 		"""Retrieves basic siteinfo
